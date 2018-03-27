@@ -11,7 +11,7 @@ body {
 .phone {
   background: #221e1f;
   border: 5px solid #4b473f;
-  height: 525px;
+  height: 571px;
   width: 235px;
   border-radius: 30px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
@@ -175,6 +175,30 @@ body {
   height: 55px;
 }
 
+.fnkey .key {
+    background: #636363;
+    font-size: 16px;
+    display: inline;
+    height: 46px;
+    width: 53px;
+
+}
+.fnkey .fnkey-filler {
+    background: #1de9b6;
+    width: 13px;
+    float: right;
+    height: 46px;
+
+}
+
+.key span i {
+    font-size: smaller;
+    left: 1px;
+    font-style: normal;
+    position: relative;
+    vertical-align: super;
+}
+
 .key:hover,
 .key:active,
 .key:focus {
@@ -192,7 +216,7 @@ body {
   background: #636363;
   font-size: 16px;
   height: 46px;
-  width: 46px;
+  width: 47px;
   min-width: 44px;
   display: block;
 }
@@ -204,6 +228,6 @@ body {
 .extendedOperators {
   background: #1de9b6;
   height: 240px;
-  width: 14px;
+  width: 13px;
   float: left;
 }
