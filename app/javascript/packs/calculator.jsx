@@ -5,11 +5,17 @@ import Cookies from 'universal-cookie'
 class Calculator extends React.Component {
     constructor() {
         super();
-        this.cookieName = '_jscalc_history'
-        this.enterDigit = this.enterDigit.bind(this);
-        this.enterOperator = this.enterOperator.bind(this);
-        this.pushHistory = this.pushHistory.bind(this);
-        this.getHistory = this.getHistory.bind(this);
+        this.cookieName     = '_jscalc_history';
+        this.op1            = null;                         // left operand
+        this.op2            = null;                         // right operand
+        this.operator       = null                          // current operator
+        this.arrOutput      = [];
+        this.enterDigit     = this.enterDigit.bind(this);
+        this.enterOperator  = this.enterOperator.bind(this);
+        this.pushHistory    = this.pushHistory.bind(this);
+        this.getHistory     = this.getHistory.bind(this);
+        this.appendOperatorToOutput     = this.appendOperatorToOutput.bind(this);
+        this.calcSimpleResult = this.calcSimpleResult.bind(this);
         this.state = {
             input: '',
             output: '',
@@ -18,19 +24,19 @@ class Calculator extends React.Component {
             deleteToggle: 'DEL'
         }
         this.getHistory();
-        
+
     }
     enterDigit(value) {
-         if(value === '=') {
-             if (this.state.input.length > 0) {
-                 this.pushHistory(this.state.input + ' = ' + this.state.output);
-                 this.setState({
-                     input: this.state.output.toString(),
-                     output: '',
-                     operator: null,
-                     deleteToggle: 'CLR'
-                 })
-             }
+        if(value === '=') {
+            if (this.state.input.length > 0) {
+                this.pushHistory(this.state.input + ' = ' + this.state.output);
+                this.setState({
+                    input: this.state.output.toString(),
+                    output: '',
+                    operator: null,
+                    deleteToggle: 'CLR'
+                })
+            }
         } else if (this.state.operator !== null) {
             var newInput = this.state.input + value;
             var replace = newInput.replace(/x/g, '*').replace(/÷/g, '/').replace(/√x/, '**');
@@ -48,6 +54,37 @@ class Calculator extends React.Component {
         }
     }
     enterOperator(value) {
+        if (this.op2 || this.op1) {
+            if (!this.op2) {
+                this.appendOperatorToOutput(value);
+
+            // We have both operands and an operator
+            } else {
+                this.op1 = this.calcResult();
+                this.state.input = this.op1;
+                this.arrOutput.push(this.op2, value);
+                this.op2 = null
+            }
+            if (value === '=') {
+                this.pushHistory(this.arrOutput.join(' ') + ' = ' + this.op1);
+                this.arrOutput = [];
+                this.op2 = null;
+                this.operator = null
+            } else {
+                this.operator = value
+            }
+
+            this.setState({
+                input: this.state.input,
+                operator: this.operator,
+                output: this.arrOutput.join(' '),
+                deleteToggle: 'CLR'
+            })
+
+        }
+    }
+
+    enterSpecialOperator(value) {
         if(value == 'CLR') {
             this.setState({
                 input: '',
@@ -66,32 +103,60 @@ class Calculator extends React.Component {
                 operator: null,
             })
         } else if(value == 'SQRT') {
-            if (this.state.input.length > 0) {
-                var replace = this.state.input.replace(/x/g, '*').replace(/÷/g, '/');
-                var result = this.round(Math.pow(eval(replace), 1 / 2)).toString();
-                this.pushHistory('√(' + replace + ') = ' + result);
+            if (this.op2 || this.op1) {
+                var result;
+                var oper;
+                if (!this.op2) {
+                    oper = this.op1;
+                    this.op1 = this.round(Math.pow(oper, 0.5))
+                    this.state.input = this.op1
+                } else {
+                    oper = this.op2;
+                    this.op2 = this.round(Math.pow(oper, 0.5))
+                    this.state.input = this.op2
+                }
+                this.pushOutput('√(' + oper + ')')
+
                 this.setState({
-                    input: result,
-                    output: '',
+                    output: this.arrOutput.join(' '),
                     operator: null,
                     deleteToggle: 'CLR'
                 })
 
             }
-
-        } else {
-            this.setState({
-                input: this.state.input + value,
-                operator: value.replace(/x/g, '*').replace(/÷/g, '/')
-            })
-
         }
+    }
+
+    // appendOperatorToOutput - adds the current operator to the output array
+    //                   unless an operator already there
+    appendOperatorToOutput(value) {
+        if (isNaN(this.arrOutput.slice(-1).pop())) {
+            this.replaceLast(this.arrOutput, value)
+        } else {
+            this.arrOutput.push(value)
+        }
+    }
+
+    calcResult() {
+        var result;
+        if (this.operator == '**') {
+            result = this.round(Math.pow(this.op1, this.op2))
+        } else {
+            result = calcSimpleResult()
+        }
+        return result
+    }
+
+    // calcSimpleResult - when eval alone will do the job
+    calcSimpleResult() {
+        var oper = this.operator.replace(/x/g, '*').replace(/÷/g, '/');
+        return this.round(eval(this.op1.toString() + oper + this.op2.toString()))
     }
     getHistory() {
         var history  = this.getCookie(this.cookieName)
         if (typeof history != 'undefined') {
             this.state.history = history
-        }                
+        }
     }
     clearHistory() {
         this.removeCookie(this.cookieName);
@@ -99,7 +164,9 @@ class Calculator extends React.Component {
             history: []
         })
     }
-
+    pushOutput(value) {
+        this.arrOutput.push(value)
+    }
     pushHistory(value) {
         this.getHistory();
         while (this.state.history.length >= 10) this.state.history.shift(1);
@@ -174,10 +241,10 @@ class FnKeys extends React.Component {
         return(
             <div className="fnkey">
                 <div className="keyrow">
-                    <Key value={this.props.deleteToggle} enterValue={this.props.enterOperator} />
-                    <Key value='CA' enterValue={this.props.enterOperator} />
+                    <Key value={this.props.deleteToggle} enterValue={this.props.enterSpecialOperator} />
+                    <Key value='CA' enterValue={this.props.enterSpecialOperator} />
                     <Key value=' ' disp="&nbsp;" enterValue={Function.prototype} />
-                    <Key value='SQRT' disp="<b>√</b>x" enterValue={this.props.enterOperator} />
+                    <Key value='SQRT' disp="<b>√</b>x" enterValue={this.props.enterSpecialOperator} />
                     <div className="fnkey-filler">&nbsp;</div>
                 </div>
             </div>
@@ -231,7 +298,7 @@ class HistRow extends React.Component {
                 <br></br>
             </div>
         )
-        
+
     }
 }
 
