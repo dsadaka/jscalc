@@ -32,9 +32,14 @@ class Calculator extends React.Component {
                  })
              }
         } else if (this.state.operator !== null) {
-            var newInput = this.state.input + value;
-            var replace = newInput.replace(/x/g, '*').replace(/÷/g, '/').replace(/√x/, '**');
-            var result = Math.round(10000000 * eval(replace),5) / 10000000;
+            var newInput = this.state.input  + value;
+            var replace = newInput.replace(/x/g, '*').replace(/÷/g, '/');
+            var result;
+            if (replace.includes('^')) {
+                replace = this.evalExponents(replace).toString()
+            }
+            result = this.round(eval(replace)).toString();
+
             this.setState({
                 input: newInput,
                 output: result,
@@ -52,7 +57,8 @@ class Calculator extends React.Component {
             this.setState({
                 input: '',
                 output: '',
-                operator: null
+                operator: null,
+                deleteToggle: 'CLR'
             })
         } else if(value == 'DEL') {
             this.setState({
@@ -60,11 +66,7 @@ class Calculator extends React.Component {
             })
         } else if(value == 'CA') {
             this.clearHistory();
-            this.setState({
-                input: '',
-                output: '',
-                operator: null,
-            })
+            this.enterOperator('CLR')
         } else if(value == 'SQRT') {
             if (this.state.input.length > 0) {
                 var replace = this.state.input.replace(/x/g, '*').replace(/÷/g, '/');
@@ -81,7 +83,7 @@ class Calculator extends React.Component {
 
         } else {
             this.setState({
-                input: this.state.input + value,
+                input: this.state.input + ' ' + value + ' ',
                 operator: value.replace(/x/g, '*').replace(/÷/g, '/')
             })
 
@@ -109,7 +111,7 @@ class Calculator extends React.Component {
     getCookie(name) {
         const cookies = new Cookies();
         var cookie = cookies.get(name);
-        console.log(cookie)
+        console.log(cookie);
 
         return cookie
     }
@@ -127,6 +129,26 @@ class Calculator extends React.Component {
     }
     round(expr) {
         return Math.round(10000000 * expr,5) / 10000000
+    }
+    evalExponents(expr) {
+        var arrExpr = expr.split(' ')
+        var arrResult = [];
+        var oper1 = null
+
+        // Go through all elements of expr and replace ^ expressions with result, output to arrResult
+        arrExpr.map(function(expr) {
+
+            if (expr == '^') {
+                oper1 = this.pop()
+            } else if (oper1) {
+                this.push(Math.pow(oper1, expr));
+                oper1 = null
+            } else {
+                this.push(expr)
+            }
+
+        }, arrResult)
+        return arrResult.join(' ')
     }
     render() {
         return(
@@ -269,7 +291,7 @@ class Operators extends React.Component {
     render() {
         return(
             <div className="operators">
-                <Key value='**' disp='x<i>y</i>' enterValue={this.props.enterOperator} />
+                <Key value='^' disp='x<i>y</i>' enterValue={this.props.enterOperator} />
                 <Key value='÷' enterValue={this.props.enterOperator} />
                 <Key value='x' enterValue={this.props.enterOperator} />
                 <Key value='-' enterValue={this.props.enterOperator} />
