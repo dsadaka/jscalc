@@ -10,8 +10,10 @@ class Calculator extends React.Component {
         this.op2            = null;                         // right operand
         this.operator       = null                          // current operator
         this.arrOutput      = [];
+        this.lastKeyOper    = false;                        // set if last key pressed was an operator
         this.enterDigit     = this.enterDigit.bind(this);
         this.enterOperator  = this.enterOperator.bind(this);
+        this.enterSpecialOperator  = this.enterSpecialOperator.bind(this);
         this.pushHistory    = this.pushHistory.bind(this);
         this.getHistory     = this.getHistory.bind(this);
         this.appendOperatorToOutput     = this.appendOperatorToOutput.bind(this);
@@ -21,52 +23,51 @@ class Calculator extends React.Component {
             output: '',
             history: [],
             operator: null,
-            deleteToggle: 'DEL'
+            deleteToggle: 'DEL',
+            date: new Date()
         }
         this.getHistory();
 
     }
     enterDigit(value) {
-        if(value === '=') {
-            if (this.state.input.length > 0) {
-                this.pushHistory(this.state.input + ' = ' + this.state.output);
-                this.setState({
-                    input: this.state.output.toString(),
-                    output: '',
-                    operator: null,
-                    deleteToggle: 'CLR'
-                })
-            }
-        } else if (this.state.operator !== null) {
-            var newInput = this.state.input + value;
-            var replace = newInput.replace(/x/g, '*').replace(/÷/g, '/').replace(/√x/, '**');
-            var result = Math.round(10000000 * eval(replace),5) / 10000000;
-            this.setState({
-                input: newInput,
-                output: result,
-                deleteToggle: 'DEL'
-            })
+
+        value = value.toString();
+        
+        if (value == '=') {
+            this.enterOperator(value)
         } else {
+            if (!this.operator) {
+                !this.op1 ? this.op1 = value : this.op1 += value;
+                this.state.input = this.op1
+            } else {
+                !this.op2 ? this.op2 = value : this.op2 += value;
+                this.state.input = this.op2
+            }
             this.setState({
-                input: this.state.input + value,
+                input: this.state.input,
                 deleteToggle: 'DEL'
             })
+            this.lastKeyOper = false;
         }
     }
+
     enterOperator(value) {
         if (this.op2 || this.op1) {
             if (!this.op2) {
+                if (!this.lastKeyOper) {
+                    this.pushOutput(this.op1);
+                }
                 this.appendOperatorToOutput(value);
 
             // We have both operands and an operator
             } else {
-                this.op1 = this.calcResult();
+                this.op1 = this.calcResult().toString();
                 this.state.input = this.op1;
                 this.arrOutput.push(this.op2, value);
                 this.op2 = null
             }
             if (value === '=') {
-                this.pushHistory(this.arrOutput.join(' ') + ' = ' + this.op1);
+                this.pushHistory(this.arrOutput.join(' ')  + this.op1);
                 this.arrOutput = [];
                 this.op2 = null;
                 this.operator = null
@@ -79,29 +80,30 @@ class Calculator extends React.Component {
                 operator: this.operator,
                 output: this.arrOutput.join(' '),
                 deleteToggle: 'CLR'
-            })
+            });
 
+            this.lastKeyOper = true;
         }
     }
 
     enterSpecialOperator(value) {
         if(value == 'CLR') {
+            this.arrOutput = [];
+            this.op1 = this.op2 = this.operator = null;
             this.setState({
                 input: '',
-                output: '',
-                operator: null
+                output: this.arrOutput.join(' '),
+                operator: null,
+                deleteToggle: 'CLR'
             })
         } else if(value == 'DEL') {
+            var input = this.delCurrentOperand();
             this.setState({
-                input: this.state.input.slice(0, -1)
+                input: input || ''
             })
         } else if(value == 'CA') {
             this.clearHistory();
-            this.setState({
-                input: '',
-                output: '',
-                operator: null,
-            })
+            this.enterSpecialOperator('CLR')
         } else if(value == 'SQRT') {
             if (this.op2 || this.op1) {
                 var result;
@@ -125,6 +127,8 @@ class Calculator extends React.Component {
 
             }
         }
+        this.lastKeyOper = false;
+
     }
 
     // appendOperatorToOutput - adds the current operator to the output array
@@ -142,7 +146,7 @@ class Calculator extends React.Component {
         if (this.operator == '**') {
             result = this.round(Math.pow(this.op1, this.op2))
         } else {
-            result = calcSimpleResult()
+            result = this.calcSimpleResult()
         }
         return result
     }
@@ -151,6 +155,20 @@ class Calculator extends React.Component {
     calcSimpleResult() {
         var oper = this.operator.replace(/x/g, '*').replace(/÷/g, '/');
         return this.round(eval(this.op1.toString() + oper + this.op2.toString()))
+    }
+
+    delCurrentOperand() {
+        var oper = this.op2 ? this.op2 : this.op1;
+        oper = oper.slice(0, -1);
+        if (oper.length == 0) {
+            oper = null
+        }
+        if (this.op2) {
+            this.op2 = oper
+        } else {
+            this.op1 = oper
+        }
+        return oper
     }
     getHistory() {
         var history  = this.getCookie(this.cookieName)
@@ -195,11 +213,18 @@ class Calculator extends React.Component {
     round(expr) {
         return Math.round(10000000 * expr,5) / 10000000
     }
+    tick() {
+        this.setState({
+            date: new Date()
+        });
+    }
+
     render() {
         return(
             <div>
                 <Display input={this.state.input} output={this.state.output} history={this.state.history}/>
-                <CalcInput  enterDigit={this.enterDigit} enterOperator={this.enterOperator} deleteToggle={this.state.deleteToggle} />
+                <CalcInput  enterDigit={this.enterDigit} enterOperator={this.enterOperator} enterSpecialOperator={this.enterSpecialOperator}
+                            deleteToggle={this.state.deleteToggle} />
             </div>
         )
     }
@@ -222,7 +247,7 @@ class CalcInput extends React.Component {
     render(props) {
         return(
             <div>
-                <FnKeys className="keypad fnkey" enterOperator={this.props.enterOperator} deleteToggle={this.props.deleteToggle} />
+                <FnKeys className="keypad fnkey" enterValue={this.props.enterSpecialOperator} deleteToggle={this.props.deleteToggle} />
                 <KeyPad className="keypad" enterDigit={this.props.enterDigit} />
                 <Operators  enterOperator={this.props.enterOperator} deleteToggle={this.props.deleteToggle} />
                 <ExtendedOperators enterDigit={this.props.enterDigit} />
@@ -233,18 +258,18 @@ class CalcInput extends React.Component {
 }
 
 class FnKeys extends React.Component {
-    constructor() {
-        super();
+    constructor(props) {
+        super(props);
     }
 
     render() {
         return(
             <div className="fnkey">
                 <div className="keyrow">
-                    <Key value={this.props.deleteToggle} enterValue={this.props.enterSpecialOperator} />
-                    <Key value='CA' enterValue={this.props.enterSpecialOperator} />
+                    <Key value={this.props.deleteToggle} enterValue={this.props.enterValue} />
+                    <Key value='CA' enterValue={this.props.enterValue} />
                     <Key value=' ' disp="&nbsp;" enterValue={Function.prototype} />
-                    <Key value='SQRT' disp="<b>√</b>x" enterValue={this.props.enterSpecialOperator} />
+                    <Key value='SQRT' disp="<b>√</b>x" enterValue={this.props.enterValue} />
                     <div className="fnkey-filler">&nbsp;</div>
                 </div>
             </div>
